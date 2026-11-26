@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import config from "./config.json" with { type: "json" };
+import fs from "node:fs";
 import jsdom from "jsdom";
 import {
   QMainWindow,
@@ -12,6 +12,8 @@ import {
   ButtonRole,
   Direction
 } from "@nodegui/nodegui";
+import os from "os";
+import path from "path";
 import prompt from "prompt";
 import tumblr from "tumblr.js";
 
@@ -83,7 +85,35 @@ win.setCentralWidget(centralWidget);
 
 
 // > logic
-// authenticate using info found in ./config.json
+// get path to config.json
+// note: originally config.json would just be in the same folder as this file,
+// but this didn't work with jam-pack-nodegui -- to package the app it clones
+// from the github repo, which itself doesn't contain config.json for security
+// reasons. so AppData it is...
+let configPath;
+
+switch(os.platform()) {
+  case "win32":
+    configPath = path.join(process.env.LOCALAPPDATA, "autoqueue", "config.json");
+    break;
+
+  case "linux":
+    if (process.env.XDG_CONFIG_HOME) {
+      configPath = path.join(process.env.XDG_CONFIG_HOME, "autoqueue", "config.json");
+    } else if (process.env.HOME) {
+      configPath = path.join(process.env.HOME, ".config", "autoqueue", "config.json");
+    }
+    break;
+
+  default:
+    configPath = path.join(process.env.USERPROFILE, "Local Settings", "Application Data", "autoqueue", "config.json");
+    break;
+}
+
+// read config
+const config = JSON.parse(fs.readFileSync(configPath));
+
+// authenticate using info found in config.json
 const client = tumblr.createClient({
   consumer_key: config.consumer_key,
   consumer_secret: config.consumer_secret,
